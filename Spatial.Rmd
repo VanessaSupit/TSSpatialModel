@@ -41,8 +41,7 @@ Berikut merupakan library-library yang akan digunakan dalam pemodelan spasial
 
 ```{r}
 library(rgdal)           
-library(raster)
-library(openxlsx)        
+library(raster)    
 library(spdep)
 library(sp)
 library(raster)
