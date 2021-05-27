@@ -1,0 +1,204 @@
+---
+title: "Teknik Sampling"
+subtitle: "UAS Nomor 4"
+author: "Vanessa Supit"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+  html_document: 
+    html_document: null
+    code_folding: show
+    toc: yes
+    toc_float:
+      collapsed: yes
+    number_sections: yes
+    theme: sandstone
+    css: style.css
+    highlight: monochrome
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(message = F,
+                      warning = F)
+```
+
+
+```{r me, echo=FALSE,fig.align='center', out.width = '30%'}
+knitr::include_graphics("logo.png")
+```
+
+Email &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;&nbsp;:  vanessasupit0910@gmail.com <br>
+RPubs  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;: https://rpubs.com/vanessasupit/ <br>
+Department &nbsp;: [Business Statistics](https://matanauniversity.ac.id/?ly=academic&c=sb) <br>
+Address  &nbsp; &nbsp; &nbsp; &nbsp; : ARA Center, Matana University Tower <br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; Jl. CBD Barat Kav, RT.1, Curug Sangereng, Kelapa Dua, Tangerang, Banten 15810.
+
+<br>
+
+***
+
+# {-} 
+Berikut merupakan library-library yang akan digunakan dalam pemodelan spasial
+
+```{r}
+library(rgdal)           
+library(raster)
+library(openxlsx)        
+library(spdep)
+library(sp)
+library(raster)
+library(rgeos)
+library(rspatial)
+library(latticeExtra)
+library(RColorBrewer)
+library(spatialreg)
+library(DT)
+```
+
+# Input Data
+
+Link untuk file bisa diambil [di sini](https://github.com/VanessaSupit/SpatialModel)
+
+```{r}
+data = readOGR(dsn = "data", layer = "NCVACO")
+```
+
+-Daftar variabel dataset
+
+```{r}
+names(data)
+```
+
+Dataset ini adalah beberapa data dari beberapa penelitian yang dilakukan Mark Burkey tentang permintaan minuman keras menggunakan data dari sekitar tahun 2003. Secara khusus, dia melihat negara bagian Virginia dan Carolina Utara. Dataset ini terkait dengan, tetapi tidak sama dengan data yang digunakan untuk hibah NIH dan diterbitkan dalam makalah:
+
+> [Burkey, Mark L. Geographic Access and Demand in the Market for Alcohol. The Review of Regional Studies, 40(2), Fall 2010, 159-179](https://ideas.repec.org/p/pra/mprapa/36913.html)
+
+Unit analisis: kabupaten di Virginia dan Carolina Utara
+
+Deskripsi Variabel:
+
+- `Lon Lat`   Bujur dan Lintang dari County Centroid
+
+- `FIPS`  Kode FIPS untuk Wilayah (Standar Pemrosesan Informasi Federal)
+
+- `qtystores`  #Toko Minuman Keras di County
+
+- `SALESPC`  Penjualan Minuman Keras per kapita per tahun, $
+
+- `PCI`  Pendapatan per kapita
+
+- `COMM15OVP`  % bepergian selama 15 menit ke kantor
+
+- `COLLENRP`  % orang yang saat ini terdaftar di perguruan tinggi
+
+- `SOMECOLLP` % orang yang kuliah atau berpendidikan lebih tinggi
+
+- `ARMEDP` % di angkatan bersenjata
+
+- `NONWHITEP` % bukan kulit putih
+
+- `UNEMPP` % pengangguran
+
+- `ENTRECP` % dipekerjakan di bidang hiburan atau rekreasi (perwakilan untuk bidang pariwisata)
+
+- `PUBASSTP` % tentang bantuan publik
+
+- `POVPOPP` % dalam kemiskinan
+
+- `URBANP` % tinggal di daerah perkotaan
+
+- `FOREIGNBP` % lahir di luar negeri
+
+- `BAPTISTSP` % baptis selatan (secara historis anti-alkohol)
+
+- `ADHERENTSP` % penganut agama apapun
+
+- `BKGRTOMIX` wtd. jarak rata-rata dari kelompok blok ke bar terdekat yang menjual minuman keras
+
+- `COUNTMXBV` hitungan bar yang menjual minuman keras
+
+- `MXBVSQM` bar per mil persegi
+
+- `BKGRTOABC` jarak dari grup blok ke outlet ritel minuman keras terdekat ("toko ABC")
+
+- `MXBVPPOP18OV` Bar per 1.000? orang berusia 18 tahun ke atas
+
+- `DUI1802` Penangkapan DUI per 1.000 orang 18+
+
+- `FVPTHH02` Pelanggaran terhadap keluarga dan anak (kekerasan dalam rumah tangga) per 1.000 rumah tangga
+
+- DC  GA  KY  MD  SC  TN  WV  VA  Variabel tiruan untuk negara bagian yang berbatasan dengan negara bagian lain
+
+- `AREALANDSQMI` Luas wilayah
+
+- `COUNTBKGR` jumlah kelompok blok di daerah
+
+- `TOTALPOP`  Penduduk daerah
+
+- `POP18OV` orang berusia 18+ di daerah
+
+- `LABFORCE` jumlah angkatan kerja di daerah
+
+- `HHOLDS`  # rumah tangga di daerah
+
+- `POP25OV` Pop 25+ di daerah
+
+- `POP16OV`  Pop 16+ di daerah
+
+
+# Pemetaan Distribusi Spasial
+
+Sebelumnya kita akan mentransformasi struktur variabel *PCI* (Pendapatan per kapita) dari faktor ke numerik
+
+```{r}
+data$PCI <- as.numeric(levels(data$PCI))[data$PCI]
+```
+
+Sekarang kita akan memvisualisasikan penjualan minuman keras per kapita
+
+```{r}
+spplot(data, "SALESPC") 
+```
+
+Dari hasil visualisasi di atas kita bisa melihat bahwa rata-rata penjualan minuman keras di tiap daerah berkisar di angka 50-150. Namun ada satu daerah dengan penjualan kapita yang sangat tinggi yang mencapai300 per kapita, yaitu area berwarna kuning.
+
+# Pemodelan Regresi Spasial
+
+Di bagian sini kita akan membangun model linier untuk data kita. Model spasial secara global terdiri dari:
+
+* SEM: $y=XB+u$
+* SAR: $y=\rho Wy+XB+\varepsilon$
+* SARMA: $y=\rho Wy+XB+u$
+
+Sebelum memulai pemodelan kita perlu membuat pemberat dengan fungsi berikut
+
+```{r}
+queen.nb <- poly2nb(data)             # Menciptakan relasi
+listw <- nb2listw(queen.nb)           # Mengkonversi nb ke listw
+```
+
+Selanjutnya kita akan membuat persamaan model linier kita
+
+```{r}
+lm <-DUI1802 ~ SALESPC + COLLENRP + BKGRTOABC + BAPTISTSP + BKGRTOMIX + ENTRECP
+```
+
+## Model SEM
+
+```{r}
+reg1 <- errorsarlm(lm, data=data, listw)
+summary(reg1)
+```
+
+## Model SAR
+
+```{r}
+reg2 <- lagsarlm(lm, data = data, listw)
+summary(reg2)
+```
+
+## Model SARMA
+
+```{r}
+reg3 <- sacsarlm(lm,data = data, listw)
+summary(reg3)
+```
