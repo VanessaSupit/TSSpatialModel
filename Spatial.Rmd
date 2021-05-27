@@ -55,7 +55,7 @@ library(DT)
 
 # Input Data
 
-Link untuk file bisa diambil [di sini](https://github.com/VanessaSupit/SpatialModel)
+Link untuk file bisa diambil [di sini](https://github.com/VanessaSupit/TSSpatialModel)
 
 ```{r}
 data = readOGR(dsn = "data", layer = "NCVACO")
